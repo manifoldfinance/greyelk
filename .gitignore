@@ -1,0 +1,8 @@
+/.idea
+/build
+/data
+
+.DS_Store
+/greyelk
+/greyelk.test
+*.pyc
