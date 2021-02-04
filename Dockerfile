@@ -7,7 +7,7 @@ RUN apk update && apk upgrade && \
     cd /go/src/github.com/manifoldfinance/greyelk && \
     make
 
-FROM alpine:latest
+FROM alpine:3.12
 RUN apk --no-cache add ca-certificates bash
 WORKDIR /root/
 COPY --from=builder /go/src/github.com/manifoldfinance/greyelk/greyelk* ./
