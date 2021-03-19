@@ -42,4 +42,4 @@ git-add:
 
 .PHONY: vendor-check
 vendor-check:
-	@if output=$$(git -C ${BEAT_GOPATH}/src/github.com/elastic/beats status --porcelain) && [ ! -z "$${output}" ]; then printf "\033[31mWARNING: elastic/beats has uncommitted changes, these will not be in the vendor directory!\033[0m\n"; fi
+	@if output=$$(git -C ${BEAT_GOPATH}github.com/elastic/beats status --porcelain) && [ ! -z "$${output}" ]; then printf "\033[31mWARNING: elastic/beats has uncommitted changes, these will not be in the vendor directory!\033[0m\n"; fi
