@@ -1,45 +1,76 @@
-BEAT_NAME=greyelk
-BEAT_PATH=github.com/manifoldfinance/greyelk
-BEAT_GOPATH=$(firstword $(subst :, ,${GOPATH}))
-SYSTEM_TESTS=false
-TEST_ENVIRONMENT=false
-ES_BEATS?=./vendor/github.com/elastic/beats
-LIBBEAT_MAKEFILE=$(ES_BEATS)/libbeat/scripts/Makefile
-GOPACKAGES=$(shell govendor list -no-status +local)
-GOBUILD_FLAGS=-i -ldflags "-X $(BEAT_PATH)/vendor/github.com/elastic/beats/libbeat/version.buildTime=$(NOW) -X $(BEAT_PATH)/vendor/github.com/elastic/beats/libbeat/version.commit=$(COMMIT_ID)"
-MAGE_IMPORT_PATH=${BEAT_PATH}/vendor/github.com/magefile/mage
-NO_COLLECT=true
-CHECK_HEADERS_DISABLED=true
+.PHONY: ci
+ci: deps checkgofmt vet predeclared staticcheck ineffassign golint test
 
-# Path to the libbeat Makefile
--include $(LIBBEAT_MAKEFILE)
+.PHONY: deps
+deps:
+	go get -d -v -t ./...
 
-# Initial beat setup
-.PHONY: setup
-setup: pre-setup git-add
+.PHONY: updatedeps
+updatedeps:
+	go get -d -v -t -u -f ./...
 
-pre-setup: copy-vendor git-init
-	$(MAKE) -f $(LIBBEAT_MAKEFILE) mage ES_BEATS=$(ES_BEATS)
-	$(MAKE) -f $(LIBBEAT_MAKEFILE) update BEAT_NAME=$(BEAT_NAME) ES_BEATS=$(ES_BEATS) NO_COLLECT=$(NO_COLLECT)
+.PHONY: install
+install:
+	go install ./...
 
-# Copy beats into vendor directory
-.PHONY: copy-vendor
-copy-vendor: vendor-check
-	mkdir -p vendor/github.com/elastic/beats
-	git archive --remote ${BEAT_GOPATH}/src/github.com/elastic/beats HEAD | tar -x --exclude=x-pack -C vendor/github.com/elastic/beats
-	mkdir -p vendor/github.com/magefile
-	cp -R vendor/github.com/elastic/beats/vendor/github.com/magefile/mage vendor/github.com/magefile
+.PHONY: checkgofmt
+checkgofmt:
+	@echo gofmt -s -l .
+	@if [ -n "$$(go version | awk '{ print $$3 }' | grep -v devel)" ]; then \
+		output="$$(gofmt -s -l .)" ; \
+		if [ -n "$$output"  ]; then \
+		    echo "$$output"; \
+			echo "Run gofmt on the above files!"; \
+			exit 1; \
+		fi; \
+	fi
 
-.PHONY: git-init
-git-init:
-	git init
+.PHONY: vet
+vet:
+	go vet ./...
 
-.PHONY: git-add
-git-add:
-	git add -A
-	git commit -q -m "Add generated greyelk files"
+.PHONY: staticcheck
+staticcheck:
+	@go get honnef.co/go/tools/cmd/staticcheck
+	staticcheck ./...
 
+.PHONY: ineffassign
+ineffassign:
+	@go get github.com/gordonklaus/ineffassign
+	ineffassign .
 
-.PHONY: vendor-check
-vendor-check:
-	@if output=$$(git -C ${BEAT_GOPATH}/src/github.com/elastic/beats status --porcelain) && [ ! -z "$${output}" ]; then printf "\033[31mWARNING: elastic/beats has uncommitted changes, these will not be in the vendor directory!\033[0m\n"; fi
+.PHONY: predeclared
+predeclared:
+	@go get github.com/nishanths/predeclared
+	predeclared ./...
+
+# Intentionally omitted from CI, but target here for ad-hoc reports.
+.PHONY: golint
+golint:
+	@go get golang.org/x/lint/golint
+	golint -min_confidence 0.9 -set_exit_status ./
+
+# Intentionally omitted from CI, but target here for ad-hoc reports.
+.PHONY: errcheck
+errcheck:
+	@go get github.com/kisielk/errcheck
+	errcheck ./
+
+.PHONY: test
+test:
+	go test -cover -race ./...
+
+.PHONY: generate
+generate:
+	go generate ./...
+
+.PHONY: testcover
+testcover:
+	@echo go test -race -covermode=atomic ./...
+	@echo "mode: atomic" > coverage.out
+	@for dir in $$(go list ./...); do \
+		go test -race -coverprofile profile.out -covermode=atomic $$dir ; \
+		if [ -f profile.out ]; then \
+			tail -n +2 profile.out >> coverage.out && rm profile.out ; \
+		fi \
+	done
