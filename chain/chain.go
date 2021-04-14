@@ -10,22 +10,22 @@ import (
 	"github.com/elastic/beats/libbeat/beat"
 	"github.com/elastic/beats/libbeat/common"
 	"github.com/elastic/beats/libbeat/logp"
-	"github.com/manifoldfinance/gethulent/client"
+	"github.com/sambacha/gethulent/client"
 )
 
-//Blockchain contains pointer to a RPC client object
+// Blockchain contains pointer to a RPC client object
 type Blockchain struct {
 	RPCAgent client.Agent
 }
 
 var (
-	//ErrGetBlockData cannot get block data from server
+	// ErrGetBlockData cannot get block data from server
 	ErrGetBlockData = fmt.Errorf("cannot get block data")
-	//ErrGetCurrentBlockNum cannot get current block number from server
+	// ErrGetCurrentBlockNum cannot get current block number from server
 	ErrGetCurrentBlockNum = fmt.Errorf("cannnot get current block number from RPC response")
 )
 
-//Init initializes blockchain object
+// Init initializes blockchain object
 func Init(url string) (*Blockchain, error) {
 	agent, err := client.New(url)
 	if err != nil {
@@ -50,7 +50,7 @@ func (bc *Blockchain) GetBlock(blockNum int) (common.MapStr, error) {
 	return result.(map[string]interface{}), nil
 }
 
-//GenerateBlockEvent returns beat event
+// GenerateBlockEvent returns beat event
 func (bc *Blockchain) GenerateBlockEvent(blockNum int) beat.Event {
 	block, err := bc.GetBlock(blockNum)
 	if err != nil {
@@ -58,7 +58,7 @@ func (bc *Blockchain) GenerateBlockEvent(blockNum int) beat.Event {
 		return beat.Event{}
 	}
 
-	//workaround elastic mapping name conflict
+	// workaround elastic mapping name conflict
 	if h, ok := block["hash"]; ok {
 		delete(block, "hash")
 		block["blockhash"] = h
